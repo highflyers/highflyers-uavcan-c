@@ -22,7 +22,12 @@
 
 #include <cuavcan.h>
 
-void cuavcan_init()
+void cuavcan_init(cuavcan_instance_t * uavcan, uint16_t * subscribed_ids, uint8_t subscribed_ids_length)
 {
-	return;
+	CUAVCAN_DEBUG(__FUNCTION__);
+}
+
+void cuavcan_handle_can_frame(cuavcan_instance_t * uavcan, uint32_t id, uint8_t * payload, uint8_t length)
+{
+	CUAVCAN_DEBUG(__FUNCTION__);
 }

@@ -22,4 +22,33 @@
 
 #pragma once
 
-void cuavcan_init();
+#include <stdint.h>
+
+#include <cuavcan_config.h>
+
+#define CUAVCAN_MESSAGE_MAX_LENGTH		128
+
+typedef struct
+{
+	uint16_t id;
+	uint8_t source;
+	uint8_t payload[CUAVCAN_MESSAGE_MAX_LENGTH];
+	uint8_t length;
+} cuavcan_message_t;
+
+typedef struct
+{
+	cuavcan_message_t msg;
+	uint8_t is_complete;
+} cuavcan_message_assembly_t;
+
+typedef struct
+{
+	uint16_t node_id;
+	cuavcan_message_assembly_t msgs[CUAVCAN_MAX_SUBSCRIBED_MESSAGES];
+} cuavcan_instance_t;
+
+void cuavcan_init(cuavcan_instance_t *uavcan, uint16_t *subscribed_ids, uint8_t subscribed_ids_length);
+
+void cuavcan_handle_can_frame(cuavcan_instance_t *uavcan, uint32_t id, uint8_t *payload, uint8_t length);
+
