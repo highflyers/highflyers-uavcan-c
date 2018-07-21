@@ -29,10 +29,12 @@
 #include <vector>
 
 std::string test_data = "\
-0103f20a bf b0 01 00 1f a5 02 8d\n\
-0103f20a 00 01 00 03 00 66 ba 2d\n\
-0103f20a 04 00 1f a1 05 00 00 0d\n\
-0104060a 00 00 4d";
+0104060A B5 CC 47 3D 1D 00 00 95\n\
+0104060A 28 CF 00 00 00 00 00 35\n\
+0104060A 00 00 55\n\
+0104060A B5 CC 47 3D 1D 00 00 96\n\
+0104060A 28 CF 00 00 00 00 00 36\n\
+0104060A 00 00 56";
 
 class canFrame
 {
@@ -49,7 +51,7 @@ public:
 		{
 			n += snprintf(c_str + n, 256 - n, "%02x ", data[i]);
 		}
-		snprintf(c_str + n, 256 - n, "]\n");
+		snprintf(c_str + n, 256 - n, "]");
 		return std::string(c_str);
 	}
 } can_frame_t;
@@ -88,7 +90,12 @@ std::vector<canFrame> parseInput(const std::string &str)
 
 void messageHandler(cuavcan_message_t *msg)
 {
-	printf("!!! NEW MESSAGE !!!\n");
+	printf("!!! NEW MESSAGE !!!: (%d)  ", msg->length);
+	for (unsigned i = 0; i < msg->length; ++i)
+	{
+		printf("%02x ", msg->payload[i]);
+	}
+	printf("\n");
 }
 
 int main()

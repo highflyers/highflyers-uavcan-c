@@ -50,21 +50,70 @@ void cuavcan_handle_can_frame(cuavcan_instance_t * uavcan, uint32_t id, uint8_t 
 	uint16_t msg_id = cuavcan_get_message_id(id);
 	cuavcan_message_assembly_t *msg = cuavcan_find_message_assembly(uavcan, msg_id);
 
-	CUAVCAN_DEBUG_NO_NEWLINE(__FUNCTION__ ": msg_id = %d ", msg_id);
+	CUAVCAN_DEBUG_NO_NEWLINE("msg_id = %d ", msg_id);
 	if (msg != NULL)
 	{
 		cuavcan_tail_byte_t tail_byte;
 		cuavcan_parse_tail_byte(payload, length, &tail_byte);
 		if (cuavcan_is_transfer_single_frame(&tail_byte))
 		{
-			memcpy(payload, msg->msg.payload, length - 1);
+			memcpy(msg->msg.payload, payload, length - 1);
 			msg->msg.length = length - 1;
 			CUAVCAN_DEBUG("single-frame message");
 			uavcan->on_new_message(&msg->msg);
+			cuavcan_message_assembly_reset(msg);
 		}
 		else
 		{
-			CUAVCAN_DEBUG("multi-frame message");
+			if (tail_byte.toggle_bit == msg->expected_toggle)
+			{
+				CUAVCAN_DEBUG_NO_NEWLINE("multi-frame message - ");
+				if (!msg->is_initialized && tail_byte.is_start_of_transfer)
+				{
+					msg->is_initialized = true;
+					msg->expected_toggle = !msg->expected_toggle;
+					memcpy(msg->msg.payload + msg->msg.length, payload + 2, length - 3);
+					msg->msg.length += length - 3;
+					CUAVCAN_DEBUG("first frame");
+				}
+				else if (!msg->is_initialized && !tail_byte.is_start_of_transfer)
+				{
+					CUAVCAN_DEBUG("INVALID FRAME - expected first frame");
+				}
+				else if (msg->is_initialized && !tail_byte.is_start_of_transfer && !tail_byte.is_end_of_transfer)
+				{
+					msg->expected_toggle = !msg->expected_toggle;
+					memcpy(msg->msg.payload + msg->msg.length, payload, length - 1);
+					msg->msg.length += length - 1;
+					CUAVCAN_DEBUG("middle frame");
+				}
+				else if (msg->is_initialized && tail_byte.is_start_of_transfer)
+				{
+					CUAVCAN_DEBUG("INVALID FRAME - expected middle or last frame");
+				}
+				else if (msg->is_initialized && tail_byte.is_end_of_transfer && !tail_byte.is_start_of_transfer)
+				{
+					msg->is_complete = true;
+					// TODO: calculate CRC
+					memcpy(msg->msg.payload + msg->msg.length, payload, length - 1);
+					msg->msg.length += length - 1;
+					CUAVCAN_DEBUG("last frame");
+					uavcan->on_new_message(&msg->msg);
+					cuavcan_message_assembly_reset(msg);
+				}
+				else if (msg->is_initialized && tail_byte.is_end_of_transfer && tail_byte.is_start_of_transfer)
+				{
+					CUAVCAN_DEBUG("INVALID FRAME - last frame");
+				}
+				else
+				{
+					CUAVCAN_DEBUG("unknown error");
+				}
+			}
+			else
+			{
+				CUAVCAN_DEBUG("toggle bit error");
+			}
 		}
 	}
 	else
@@ -85,7 +134,7 @@ uint8_t cuavcan_get_node_id(uint32_t frame_id)
 
 void cuavcan_parse_tail_byte(uint8_t * payload, uint8_t length, cuavcan_tail_byte_t * dst)
 {
-	uint8_t tail_byte = payload[length];
+	uint8_t tail_byte = payload[length-1];
 	dst->data = tail_byte;
 	dst->is_start_of_transfer = tail_byte & (1 << 7);
 	dst->is_end_of_transfer = tail_byte & (1 << 6);
@@ -95,7 +144,7 @@ void cuavcan_parse_tail_byte(uint8_t * payload, uint8_t length, cuavcan_tail_byt
 
 bool cuavcan_is_transfer_single_frame(cuavcan_tail_byte_t * tail)
 {
-	return tail->is_start_of_transfer && tail->is_end_of_transfer;
+	return tail->is_start_of_transfer && tail->is_end_of_transfer && !tail->toggle_bit;
 }
 
 cuavcan_message_assembly_t * cuavcan_find_message_assembly(cuavcan_instance_t *uavcan, uint16_t msg_id)
