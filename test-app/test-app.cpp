@@ -86,15 +86,20 @@ std::vector<canFrame> parseInput(const std::string &str)
 	return ret;
 }
 
+void messageHandler(cuavcan_message_t *msg)
+{
+	printf("!!! NEW MESSAGE !!!\n");
+}
+
 int main()
 {
 	cuavcan_instance_t uavcan;
 	uint16_t subscribed_ids[] = { 1010, 1030 };
-	cuavcan_init(&uavcan, subscribed_ids, 2);
+	cuavcan_init(&uavcan, subscribed_ids, 2, messageHandler);
 	std::vector<canFrame> frames = parseInput(test_data);
 	for (std::vector<canFrame>::iterator frame = frames.begin(); frame != frames.end(); ++frame)
 	{
-		//std::cout << (*frame).toString();
+		std::cout << (*frame).toString();
 		cuavcan_handle_can_frame(&uavcan, (*frame).id, (*frame).data, (*frame).len);
 	}
 	return 0;
