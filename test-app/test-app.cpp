@@ -74,7 +74,6 @@ canFrame parseLine(const std::string &line)
 
 }
 
-
 std::vector<canFrame> parseInput(const std::string &str)
 {
 	std::vector<canFrame> ret;
